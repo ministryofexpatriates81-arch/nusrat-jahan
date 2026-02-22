@@ -1,0 +1,9 @@
+{
+  "name": "spy-bot",
+  "version": "1.0.0",
+  "main": "bot.js",
+  "dependencies": {
+    "firebase-admin": "^11.11.0",
+    "node-telegram-bot-api": "^0.64.0"
+  }
+}
