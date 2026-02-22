@@ -1,0 +1,27 @@
+name: Run Remote Bot
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+
+    - name: Install Dependencies
+      run: npm install
+
+    # সিক্রেট থেকে ফায়ারবেস কি-ফাইল তৈরি
+    - name: Create Firebase Key
+      run: echo '${{ secrets.FIREBASE_KEY }}' > serviceAccountKey.json
+
+    # বট স্টার্ট করা
+    - name: Start Bot
+      run: node bot.js
